@@ -1,13 +1,23 @@
 import pygame,sys
 from level import Level
 from default import *
+from ble_controller import BleController
+from connection_screen import ConnectionScreen
 
 
 class SceneManager:
-    def __init__(self, surface):
-        self._scene = Level(surface)
+    def __init__(self, surface, ble_controller):
+        self.ble_controller = ble_controller
+        self._was_connected = False
+        level = Level(surface, ble_controller)
+        self._scene = ConnectionScreen(ble_controller, next_scene=level)
 
     def run(self, events):
+        connected = self.ble_controller.is_connected()
+        if self._was_connected and not connected and not isinstance(self._scene, ConnectionScreen):
+            self._scene = ConnectionScreen(self.ble_controller, next_scene=self._scene)
+        self._was_connected = connected
+
         next_scene = self._scene.run(events)
         if next_scene:
             self._scene = next_scene
@@ -25,7 +35,8 @@ class App:
         self.screen = pygame.display.set_mode(self.size)
         pygame.display.set_caption('ReQuest')
         self._game_surf = pygame.Surface((WIDTH // SCALE, HEIGHT // SCALE))
-        self.scene_manager = SceneManager(self._game_surf)
+        self.ble_controller = BleController()
+        self.scene_manager = SceneManager(self._game_surf, self.ble_controller)
 
     def run(self):
         while self._running:

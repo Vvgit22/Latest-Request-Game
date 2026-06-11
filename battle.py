@@ -3,18 +3,24 @@ import sys
 
 
 class BattleScreen:
-    def __init__(self, player, enemy, back_to, surface):
+    def __init__(self, player, enemy, back_to, surface, ble_controller=None):
         self.player = player
         self.enemy = enemy
         self.exercise = enemy.exercise
         self.back_to = back_to
         self.display_surface = surface
+        self.ble_controller = ble_controller
         self.enemy_hp = enemy.hp
         self.font = pygame.font.Font('graphics/m5x7.ttf', 32)
         heart = pygame.image.load('graphics/hp2.png').convert_alpha()
         self.heart_img = pygame.transform.scale(heart, (32, 32))
         self.prev_space = False
         self.background_img = pygame.image.load('graphics/battle-bg.png').convert_alpha()
+
+        if self.ble_controller and self.ble_controller.is_connected():
+            self.ble_controller.send_command(f"SET_REPS:{self.enemy_hp}")
+            self.ble_controller.get_and_clear_reps()
+            self.ble_controller.get_and_clear_task_complete()
 
     def run(self, events=None):
         self.display_surface.fill((20, 20, 40))
@@ -31,12 +37,15 @@ class BattleScreen:
             self.display_surface.blit(flipped, (3 * w // 4 - 8, h // 2 - 8))
 
         # handle input
-        keys = pygame.key.get_pressed()
-
-        space_down = keys[pygame.K_SPACE]
-        if space_down and not self.prev_space:
-            self.enemy_hp -= 1
-        self.prev_space = space_down
+        if self.ble_controller and self.ble_controller.is_connected():
+            if self.ble_controller.get_and_clear_task_complete():
+                self.enemy_hp = 0
+        else:
+            keys = pygame.key.get_pressed()
+            space_down = keys[pygame.K_SPACE]
+            if space_down and not self.prev_space:
+                self.enemy_hp -= 1
+            self.prev_space = space_down
 
         for event in (events or []):
             if event.type == pygame.QUIT:
@@ -76,5 +85,9 @@ class BattleScreen:
         screen.blit(exercise_text, (left, exercise_y))
 
         h = screen.get_height()
-        #hint_text = self.font.render('SPACE: Attack   ESC: Flee', True, (180, 180, 180))
-        #screen.blit(hint_text, (16, h - 48))
+        if self.ble_controller and self.ble_controller.is_connected():
+            hint = 'REP: Attack   ESC: Flee'
+        else:
+            hint = 'SPACE: Attack   ESC: Flee'
+        hint_text = self.font.render(hint, True, (180, 180, 180))
+        screen.blit(hint_text, (16, h - 48))

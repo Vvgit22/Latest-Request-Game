@@ -4,12 +4,14 @@ from tile import Tile
 from player import Player
 from enemy import Enemy
 from battle import BattleScreen
+from calibration import CalibrationScreen
 from finish import FinishScreen
 
 
 class Level:
-    def __init__(self, surface):
+    def __init__(self, surface, ble_controller=None):
         self.display_surface = surface
+        self.ble_controller = ble_controller
 
         self.visible_sprites = YSortCameraGroup(surface)
         self.obstacle_sprites = pygame.sprite.Group()
@@ -36,6 +38,11 @@ class Level:
     def _check_battle(self):
         hits = pygame.sprite.spritecollide(self.player, self.enemy_sprites, False)
         if hits:
+            if self.ble_controller and self.ble_controller.is_connected():
+                return CalibrationScreen(
+                    self.player, hits[0], self.ble_controller,
+                    back_to=self, surface=self.display_surface,
+                )
             return BattleScreen(self.player, hits[0], back_to=self, surface=self.display_surface)
         return None
 
