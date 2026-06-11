@@ -1,5 +1,6 @@
 import asyncio
 import threading
+import re
 from bleak import BleakScanner, BleakClient
 
 
@@ -11,6 +12,10 @@ class BleController:
     def __init__(self):
         self._reps = 0
         self._task_complete = False
+        self._dist = 0.0
+        self._start_dist = 0.0
+        self._max_dist = 1.0
+        self._calib_max_confirmed = False
         self._lock = threading.Lock()
         self._connected = False
         self._client = None
@@ -53,12 +58,25 @@ class BleController:
             text = data.decode("utf-8", errors="ignore")
         except Exception:
             text = str(data)
+        print(f"[BLE] {text}")
         if text.startswith("REP_OK"):
             with self._lock:
                 self._reps += 1
         elif text.startswith("TASK_SUCCESS"):
             with self._lock:
                 self._task_complete = True
+        elif text.startswith("CALIB_START_OK"):
+            with self._lock:
+                self._start_dist = self._dist
+        elif text.startswith("CALIB_MAX_OK"):
+            with self._lock:
+                self._max_dist = self._dist
+                self._calib_max_confirmed = True
+        elif text.startswith("DATA:"):
+            m = re.search(r'dist\s*=\s*([\d.]+)', text)
+            if m:
+                with self._lock:
+                    self._dist = float(m.group(1))
 
     def send_command(self, cmd: str):
         if not self._connected or self._client is None:
@@ -81,6 +99,19 @@ class BleController:
             done = self._task_complete
             self._task_complete = False
             return done
+
+    def get_and_clear_calib_max_confirmed(self) -> bool:
+        with self._lock:
+            confirmed = self._calib_max_confirmed
+            self._calib_max_confirmed = False
+            return confirmed
+
+    def get_dist_fraction(self) -> float:
+        with self._lock:
+            span = self._max_dist - self._start_dist
+            if span <= 0:
+                return 0.0
+            return max(0.0, min(1.0, (self._dist - self._start_dist) / span))
 
     def is_connected(self) -> bool:
         return self._connected

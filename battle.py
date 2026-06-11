@@ -14,7 +14,11 @@ class BattleScreen:
         self.font = pygame.font.Font('graphics/m5x7.ttf', 32)
         heart = pygame.image.load('graphics/hp2.png').convert_alpha()
         self.heart_img = pygame.transform.scale(heart, (32, 32))
-        self.prev_space = False
+        self._charge = 0
+        self._charge_locked = False
+        self._flash_timer = 0
+        self._death_timer = 0
+        self._rep_grace = True
         self.background_img = pygame.image.load('graphics/battle-bg.png').convert_alpha()
 
         if self.ble_controller and self.ble_controller.is_connected():
@@ -33,19 +37,43 @@ class BattleScreen:
         self.display_surface.blit(self.player.animations['right'][0], (w // 4 - 8, h // 2 - 8))
         if self.enemy.alive():
             self.enemy.animate()
-            flipped = pygame.transform.flip(self.enemy.image, True, False)
+            img = self.enemy.image
+            if self._flash_timer > 0:
+                self._flash_timer -= 1
+                if self._flash_timer % 4 >= 2:
+                    img = img.copy()
+                    img.fill((255, 255, 255), special_flags=pygame.BLEND_RGB_MAX)
+            flipped = pygame.transform.flip(img, True, False)
             self.display_surface.blit(flipped, (3 * w // 4 - 8, h // 2 - 8))
 
-        # handle input
-        if self.ble_controller and self.ble_controller.is_connected():
-            if self.ble_controller.get_and_clear_task_complete():
-                self.enemy_hp = 0
-        else:
-            keys = pygame.key.get_pressed()
-            space_down = keys[pygame.K_SPACE]
-            if space_down and not self.prev_space:
-                self.enemy_hp -= 1
-            self.prev_space = space_down
+        # handle input (skipped during death sequence)
+        if self._death_timer == 0:
+            if self.ble_controller and self.ble_controller.is_connected():
+                if self._rep_grace:
+                    self._rep_grace = False
+                    self.ble_controller.get_and_clear_reps()
+                else:
+                    reps = self.ble_controller.get_and_clear_reps()
+                    if reps > 0:
+                        self.enemy_hp -= reps
+                        self._flash_timer = 60
+                if self.ble_controller.get_and_clear_task_complete():
+                    self.enemy_hp = 0
+                    self._flash_timer = 60
+            else:
+                CHARGE_MAX = 60
+                keys = pygame.key.get_pressed()
+                if keys[pygame.K_SPACE]:
+                    if not self._charge_locked:
+                        self._charge = min(self._charge + 1, CHARGE_MAX)
+                        if self._charge >= CHARGE_MAX:
+                            self.enemy_hp -= 1
+                            self._charge = 0
+                            self._flash_timer = 60
+                            self._charge_locked = True
+                else:
+                    self._charge = 0
+                    self._charge_locked = False
 
         for event in (events or []):
             if event.type == pygame.QUIT:
@@ -54,11 +82,23 @@ class BattleScreen:
             if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                 return self.back_to
 
-        if self.enemy_hp <= 0:
-            self.enemy.kill()
-            return self.back_to
+        if self.enemy_hp <= 0 and self._death_timer == 0:
+            self._death_timer = 180  # 3 seconds at 60 fps
+
+        if self._death_timer > 0:
+            self._death_timer -= 1
+            if self._death_timer == 0:
+                self.enemy.kill()
+                return self.back_to
 
         return None
+
+    def _draw_stretch_bar(self, screen, bar_cx, bar_y, fraction):
+        BAR_MAX_W = 200
+        BAR_H = 14
+        fill_w = max(1, int(BAR_MAX_W * fraction))
+        pygame.draw.rect(screen, (60, 60, 60),   (bar_cx - BAR_MAX_W // 2, bar_y, BAR_MAX_W, BAR_H))
+        pygame.draw.rect(screen, (80, 200, 120), (bar_cx - fill_w // 2,    bar_y, fill_w,    BAR_H))
 
     def draw_ui(self, screen):
         scale = screen.get_width() // self.display_surface.get_width()
@@ -84,10 +124,22 @@ class BattleScreen:
         exercise_y = hearts_y + self.heart_img.get_height() + 8
         screen.blit(exercise_text, (left, exercise_y))
 
+        # stretch bar centred below player sprite
+        player_sprite = self.player.animations['right'][0]
+        px_small = w_small // 4 - 8
+        py_small = h_small // 2 - 8
+        bar_cx = (px_small + player_sprite.get_width() // 2) * scale
+        bar_y  = (py_small + player_sprite.get_height()) * scale + 8
+        if self.ble_controller and self.ble_controller.is_connected():
+            fraction = self.ble_controller.get_dist_fraction()
+        else:
+            fraction = self._charge / 60
+        self._draw_stretch_bar(screen, bar_cx, bar_y, fraction)
+
         h = screen.get_height()
         if self.ble_controller and self.ble_controller.is_connected():
             hint = 'REP: Attack   ESC: Flee'
         else:
-            hint = 'SPACE: Attack   ESC: Flee'
+            hint = 'HOLD SPACE: Attack   ESC: Flee'
         hint_text = self.font.render(hint, True, (180, 180, 180))
         screen.blit(hint_text, (16, h - 48))
