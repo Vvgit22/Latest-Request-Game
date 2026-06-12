@@ -46,7 +46,7 @@ class BattleScreen:
             fraction = self._charge / 60
         bar_img = self.bar_frames[min(int(fraction * 16), 16)]
         bar_x = w // 4 - 8 + player_sprite.get_width() // 2 - bar_img.get_width() // 2
-        bar_y = h // 2 - 8 + player_sprite.get_height() + 12
+        bar_y = h // 2 - 8 + player_sprite.get_height() + 35
         self.display_surface.blit(bar_img, (bar_x, bar_y))
         if self.enemy.alive():
             self.enemy.animate()
