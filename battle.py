@@ -18,11 +18,15 @@ class BattleScreen:
         self._charge_locked = False
         self._flash_timer = 0
         self._death_timer = 0
+        self._victory = False
         self._rep_grace = True
         self.background_img = pygame.image.load('graphics/battle-bg.png').convert_alpha()
+        self.bar_frames = [
+            pygame.image.load(f'graphics/bar/bar{i}.png').convert_alpha()
+            for i in range(1, 18)
+        ]
 
         if self.ble_controller and self.ble_controller.is_connected():
-            self.ble_controller.send_command(f"SET_REPS:{self.enemy_hp}")
             self.ble_controller.get_and_clear_reps()
             self.ble_controller.get_and_clear_task_complete()
 
@@ -33,8 +37,17 @@ class BattleScreen:
         w = self.display_surface.get_width()
         h = self.display_surface.get_height()
 
-        # draw player and enemy sprites
-        self.display_surface.blit(self.player.animations['right'][0], (w // 4 - 8, h // 2 - 8))
+        # draw player, bar, and enemy sprites
+        player_sprite = self.player.animations['right'][0]
+        self.display_surface.blit(player_sprite, (w // 4 - 8, h // 2 - 8))
+        if self.ble_controller and self.ble_controller.is_connected():
+            fraction = self.ble_controller.get_dist_fraction()
+        else:
+            fraction = self._charge / 60
+        bar_img = self.bar_frames[min(int(fraction * 16), 16)]
+        bar_x = w // 4 - 8 + player_sprite.get_width() // 2 - bar_img.get_width() // 2
+        bar_y = h // 2 - 8 + player_sprite.get_height() + 12
+        self.display_surface.blit(bar_img, (bar_x, bar_y))
         if self.enemy.alive():
             self.enemy.animate()
             img = self.enemy.image
@@ -89,16 +102,14 @@ class BattleScreen:
             self._death_timer -= 1
             if self._death_timer == 0:
                 self.enemy.kill()
-                return self.back_to
+                self._victory = True
+
+        if self._victory:
+            for event in (events or []):
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                    return self.back_to
 
         return None
-
-    def _draw_stretch_bar(self, screen, bar_cx, bar_y, fraction):
-        BAR_MAX_W = 200
-        BAR_H = 14
-        fill_w = max(1, int(BAR_MAX_W * fraction))
-        pygame.draw.rect(screen, (60, 60, 60),   (bar_cx - BAR_MAX_W // 2, bar_y, BAR_MAX_W, BAR_H))
-        pygame.draw.rect(screen, (80, 200, 120), (bar_cx - fill_w // 2,    bar_y, fill_w,    BAR_H))
 
     def draw_ui(self, screen):
         scale = screen.get_width() // self.display_surface.get_width()
@@ -124,22 +135,14 @@ class BattleScreen:
         exercise_y = hearts_y + self.heart_img.get_height() + 8
         screen.blit(exercise_text, (left, exercise_y))
 
-        # stretch bar centred below player sprite
-        player_sprite = self.player.animations['right'][0]
-        px_small = w_small // 4 - 8
-        py_small = h_small // 2 - 8
-        bar_cx = (px_small + player_sprite.get_width() // 2) * scale
-        bar_y  = (py_small + player_sprite.get_height()) * scale + 8
-        if self.ble_controller and self.ble_controller.is_connected():
-            fraction = self.ble_controller.get_dist_fraction()
+        w_screen, h_screen = screen.get_size()
+        if self._victory:
+            msg = self.font.render('Enemy defeated! Press SPACE to continue', True, (255, 220, 80))
+            screen.blit(msg, msg.get_rect(center=(w_screen // 2, h_screen // 2)))
         else:
-            fraction = self._charge / 60
-        self._draw_stretch_bar(screen, bar_cx, bar_y, fraction)
-
-        h = screen.get_height()
-        if self.ble_controller and self.ble_controller.is_connected():
-            hint = 'REP: Attack   ESC: Flee'
-        else:
-            hint = 'HOLD SPACE: Attack   ESC: Flee'
-        hint_text = self.font.render(hint, True, (180, 180, 180))
-        screen.blit(hint_text, (16, h - 48))
+            if self.ble_controller and self.ble_controller.is_connected():
+                hint = 'REP: Attack   ESC: Flee'
+            else:
+                hint = 'HOLD SPACE: Attack   ESC: Flee'
+            hint_text = self.font.render(hint, True, (180, 180, 180))
+            screen.blit(hint_text, (16, h_screen - 48))

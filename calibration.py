@@ -34,6 +34,7 @@ class CalibrationScreen:
 
         if self.step == 2:
             if self.ble_controller.get_and_clear_calib_max_confirmed():
+                self.ble_controller.send_command(f"SET_REPS:{self.enemy.hp}")
                 self.ble_controller.send_command("START_GAME")
                 return BattleScreen(
                     self.player, self.enemy,
