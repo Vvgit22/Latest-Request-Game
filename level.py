@@ -1,4 +1,5 @@
 import pygame
+import random
 from default import *
 from tile import Tile
 from player import Player
@@ -23,20 +24,41 @@ class Level:
         self.create_map()
 
     def create_map(self):
+        floor_positions = []
+        enemy_types = []
+        player_pos = None
+
         for row_index, row in enumerate(WORLD_MAP):
             for col_index, col in enumerate(row):
                 x = col_index * TILESIZE
                 y = row_index * TILESIZE
                 if col == 'x':
-                    Tile((x, y), [self.visible_sprites, self.obstacle_sprites],col)
+                    Tile((x, y), [self.visible_sprites, self.obstacle_sprites], col)
                 elif col == 'p':
+                    player_pos = (x, y)
                     self.player = Player((x, y), [self.visible_sprites], self.obstacle_sprites)
-                    Tile((x,y), [self.visible_sprites], ' ')
+                    Tile((x, y), [self.visible_sprites], ' ')
+                    floor_positions.append((x, y))
                 elif col in ENEMY_MAP:
-                    Enemy((x, y), [self.visible_sprites, self.enemy_sprites], self.obstacle_sprites, ENEMY_MAP[col])
-                    Tile((x,y), [self.visible_sprites], ' ')
+                    enemy_types.append(ENEMY_MAP[col])
+                    floor_positions.append((x, y))
+                    Tile((x, y), [self.visible_sprites], ' ')
                 elif col == ' ':
-                    Tile((x,y), [self.visible_sprites], col)
+                    floor_positions.append((x, y))
+                    Tile((x, y), [self.visible_sprites], col)
+
+        # pick random spawn positions, keeping enemies away from player start
+        MIN_DIST = TILESIZE * 5
+        candidates = [
+            pos for pos in floor_positions
+            if player_pos is None or (
+                abs(pos[0] - player_pos[0]) + abs(pos[1] - player_pos[1]) >= MIN_DIST
+            )
+        ]
+        random.shuffle(candidates)
+        for i, enemy_type in enumerate(enemy_types):
+            pos = candidates[i % len(candidates)]
+            Enemy(pos, [self.visible_sprites, self.enemy_sprites], self.obstacle_sprites, enemy_type)
 
     def _check_battle(self):
         hits = pygame.sprite.spritecollide(self.player, self.enemy_sprites, False)

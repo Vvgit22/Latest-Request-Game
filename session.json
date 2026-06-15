@@ -1,0 +1,26 @@
+{
+  "patient": "j",
+  "exercise": "Shoulder External Rotation",
+  "reps": 9,
+  "sets": 3,
+  "resistance": "medium",
+  "plan": [
+    {
+      "exercise": "Shoulder External Rotation",
+      "reps": 9,
+      "sets": 3
+    },
+    {
+      "exercise": "Banded I-Y-T Raises",
+      "reps": 15,
+      "sets": 3
+    },
+    {
+      "exercise": "Single-Arm Row to Press",
+      "reps": 10,
+      "sets": 3
+    }
+  ],
+  "current": 0,
+  "updated": 1781540973.4255233
+}

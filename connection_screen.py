@@ -30,7 +30,8 @@ class ConnectionScreen:
 
         dots = '.' * ((self._tick // 30) % 4)
         status_surf = self.font.render(f"Searching for StellaController{dots}", True, (220, 220, 220))
-        hint_surf = self.font.render("SPACE: Play without controller", True, (140, 140, 140))
+        #hint_surf = self.font.render("SPACE: Play without controller", True, (140, 140, 140))
+        instruction = self.font.render("Strap the wearables to your wrist and get ready", True, (190, 190, 190))
 
         screen.blit(status_surf, (w // 2 - status_surf.get_width() // 2, h // 2 - 30))
-        screen.blit(hint_surf,   (w // 2 - hint_surf.get_width()   // 2, h // 2 + 20))
+        screen.blit(instruction,   (w // 2 - instruction.get_width() // 2, h // 2 + 20))

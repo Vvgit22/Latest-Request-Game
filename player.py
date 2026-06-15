@@ -11,11 +11,11 @@ class Player(Entity):
     def __init__(self, pos, groups, obstacle_sprites):
         super().__init__(groups)
         self.obstacle_sprites = obstacle_sprites
-        self.speed = 1
+        self.speed = 2
         self.status = 'down'
         self.horizontal = 'right'
         self.frame_index = 0
-        self.animation_speed = 0.07
+        self.animation_speed = 0.1
 
         right_frames = [pygame.image.load(f'graphics/player-right{i}.png').convert_alpha() for i in range(1, 5)]
         left_frames = [pygame.transform.flip(f, True, False) for f in right_frames]

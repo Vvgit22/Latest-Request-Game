@@ -1,0 +1,28 @@
+{
+    "activeFile": "",
+    "expandedProjectPaths": [
+        "."
+    ],
+    "fileStates": {
+        "graphics/VelmoraRealms-TileSet_Free.tsx": {
+            "scaleInDock": 3,
+            "scaleInEditor": 1
+        }
+    },
+    "last.imagePath": "C:/Users/Jocelyn/Desktop/DAPP_GAME/graphics",
+    "map.height": 40,
+    "map.tileHeight": 16,
+    "map.tileWidth": 16,
+    "openFiles": [
+        "graphics/VelmoraRealms-TileSet_Free.tsx"
+    ],
+    "project": "Request-dungeon.tiled-project",
+    "recentFiles": [
+        "graphics/VelmoraRealms-TileSet_Free.tsx"
+    ],
+    "tileset.lastUsedFormat": "tsx",
+    "tileset.tileSize": {
+        "height": 16,
+        "width": 16
+    }
+}

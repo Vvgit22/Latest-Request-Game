@@ -1,24 +1,10 @@
 import pygame
 import sys
-from default import TILESIZE
+from default import TILESIZE, TUTORIAL_MAP
 from tile import Tile
 from player import Player
 from item import SwordItem
 from level import YSortCameraGroup
-
-TUTORIAL_MAP = [
-    ['x','x','x','x','x','x','x','x','x','x','x','x'],
-    ['x',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ','x'],
-    ['x',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ','x'],
-    ['x',' ','p',' ',' ',' ',' ',' ',' ',' ',' ','x'],
-    ['x',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ','x'],
-    ['x',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ','x'],
-    ['x',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ','x'],
-    ['x',' ',' ',' ',' ',' ',' ',' ',' ','w',' ','x'],
-    ['x',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ','x'],
-    ['x','x','x','x','x','x','x','x','x','x','x','x'],
-]
-
 
 class TutorialLevel:
     def __init__(self, surface, next_scene):
@@ -38,6 +24,10 @@ class TutorialLevel:
                     Tile((x, y), [self.visible_sprites, self.obstacle_sprites], 'x')
                 elif col == 'p':
                     self.player = Player((x, y), [self.visible_sprites], self.obstacle_sprites)
+                    right_frames = [pygame.image.load(f'graphics/player-swordless{i}.png').convert_alpha() for i in range(1, 3)]
+                    left_frames = [pygame.transform.flip(f, True, False) for f in right_frames]
+                    self.player.animations = {'right': right_frames, 'left': left_frames}
+                    self.player.image = right_frames[0]
                     Tile((x, y), [self.visible_sprites], ' ')
                 elif col == 'w':
                     SwordItem((x, y), [self.visible_sprites, self.item_sprites])
@@ -60,8 +50,10 @@ class TutorialLevel:
 
     def draw_ui(self, screen):
         hints = [
+            'Game Tutorial',
             'Use arrow keys to move around',
             'Walk over the sword to pick it up',
+
         ]
         for i, line in enumerate(hints):
             surf = self._font.render(line, True, (220, 220, 220))

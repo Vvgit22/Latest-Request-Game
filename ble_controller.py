@@ -15,6 +15,7 @@ class BleController:
         self._dist = 0.0
         self._start_dist = 0.0
         self._max_dist = 1.0
+        self._calib_start_ok = False
         self._calib_max_confirmed = False
         self._lock = threading.Lock()
         self._connected = False
@@ -68,6 +69,7 @@ class BleController:
         elif text.startswith("CALIB_START_OK"):
             with self._lock:
                 self._start_dist = self._dist
+                self._calib_start_ok = True
         elif text.startswith("CALIB_MAX_OK"):
             with self._lock:
                 self._max_dist = self._dist
@@ -99,6 +101,12 @@ class BleController:
             done = self._task_complete
             self._task_complete = False
             return done
+
+    def get_and_clear_calib_start_ok(self) -> bool:
+        with self._lock:
+            ok = self._calib_start_ok
+            self._calib_start_ok = False
+            return ok
 
     def get_and_clear_calib_max_confirmed(self) -> bool:
         with self._lock:

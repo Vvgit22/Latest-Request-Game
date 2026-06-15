@@ -49,14 +49,14 @@ class BattleScreen:
             fraction = self._charge / 60
         bar_img = self.bar_frames[min(int(fraction * 16), 16)]
         bar_x = w // 4 - 8 + player_sprite.get_width() // 2 - bar_img.get_width() // 2
-        bar_y = h // 2 - 8 + player_sprite.get_height() + 35
+        bar_y = h // 2 - 8 + player_sprite.get_height() + 30
         self.display_surface.blit(bar_img, (bar_x, bar_y))
         if self.enemy.alive():
             self.enemy.animate()
             img = self.enemy.image
             if self._flash_timer > 0:
                 self._flash_timer -= 1
-                if self._flash_timer % 4 >= 2:
+                if self._flash_timer % 8 >= 4:
                     img = img.copy()
                     img.fill((255, 255, 255), special_flags=pygame.BLEND_RGB_MAX)
             flipped = pygame.transform.flip(img, True, False)
@@ -96,6 +96,8 @@ class BattleScreen:
                 pygame.quit()
                 sys.exit()
             if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                if self.ble_controller and self.ble_controller.is_connected():
+                    self.ble_controller.send_command("RESET_ALL")
                 return self.back_to
 
         if self.enemy_hp <= 0 and self._death_timer == 0 and not self._victory:
@@ -105,6 +107,8 @@ class BattleScreen:
             self._death_timer -= 1
             if self._death_timer == 0:
                 self.enemy.kill()
+                if self.ble_controller and self.ble_controller.is_connected():
+                    self.ble_controller.send_command("RESET_ALL")
                 xp = ENEMY_DATA[self.enemy.enemy_type]['xp']
                 self._levelled_up = self.player.add_xp(xp)
                 self._xp_gained = xp
@@ -132,16 +136,12 @@ class BattleScreen:
         enemy_bottom = (ey_small + sprite_h) * scale + 120
         left = ex_small * scale
 
-        name_surf = self.font.render(self.enemy.enemy_type.capitalize(), True, (220, 220, 220))
-        screen.blit(name_surf, (left, enemy_bottom))
-
-        hearts_y = enemy_bottom + name_surf.get_height() + 4
         for i in range(self.enemy_hp):
-            screen.blit(self.heart_img, (left + i * 36, hearts_y))
+            screen.blit(self.heart_img, (left + i * 36 - 4, enemy_bottom))
 
-        exercise_text = self.font.render(self.exercise, True, (180, 180, 180))
-        exercise_y = hearts_y + self.heart_img.get_height() + 8
-        screen.blit(exercise_text, (left, exercise_y))
+        name_surf = self.font.render(self.enemy.enemy_type.capitalize(), True, (220, 220, 220))
+        name_y = enemy_bottom + self.heart_img.get_height() + 4
+        screen.blit(name_surf, (left, name_y))
 
         w_screen, h_screen = screen.get_size()
         if self._victory:
@@ -163,3 +163,30 @@ class BattleScreen:
                 hint = 'HOLD SPACE: Attack   ESC: Flee'
             hint_text = self.font.render(hint, True, (180, 180, 180))
             screen.blit(hint_text, (16, h_screen - 48))
+
+            player_sprite = self.player.animations['right'][0]
+            bar_sample = self.bar_frames[0]
+            bar_y_small = h_small // 2 - 8 + player_sprite.get_height() + 35
+            bar_bottom_screen = (bar_y_small + bar_sample.get_height()) * scale
+            bar_cx_screen = (w_small // 4 - 8 + player_sprite.get_width() // 2) * scale
+            bar_w_screen = bar_sample.get_width() * scale
+
+            raw = f'Complete 1 rep of {self.exercise} to deal damage'
+            words = raw.split()
+            lines, current = [], ''
+            for word in words:
+                test = (current + ' ' + word).strip()
+                if self.font.size(test)[0] <= bar_w_screen:
+                    current = test
+                else:
+                    if current:
+                        lines.append(current)
+                    current = word
+            if current:
+                lines.append(current)
+
+            text_y = bar_bottom_screen + 12
+            for line in lines:
+                surf = self.font.render(line, True, (200, 200, 200))
+                screen.blit(surf, surf.get_rect(center=(bar_cx_screen, text_y)))
+                text_y += surf.get_height() + 2

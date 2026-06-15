@@ -39,6 +39,7 @@ class App:
         self._game_surf = pygame.Surface((WIDTH // SCALE, HEIGHT // SCALE))
         self.ble_controller = BleController()
         self.scene_manager = SceneManager(self._game_surf, self.ble_controller)
+        self.clock = pygame.time.Clock()
 
     def run(self):
         while self._running:
@@ -52,12 +53,15 @@ class App:
             self.screen.blit(scaled, (0, 0))
             self.scene_manager.draw_ui(self.screen)
             pygame.display.update()
+            self.clock.tick(60)
 
         pygame.quit()
         sys.exit()
 
     def on_event(self, event):
         if event.type == pygame.QUIT:
+            self._running = False
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_q:
             self._running = False
 
 
