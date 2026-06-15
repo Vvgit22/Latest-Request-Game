@@ -76,26 +76,26 @@ class CalibrationScreen:
         h = screen.get_height()
 
         if self.step == -1:
-            title_surf = self.font.render("EXERCISE", True, (220, 180, 80)).convert_alpha()
+            title_surf = self.font.render("EXERCISE", False, (220, 180, 80))
             screen.blit(title_surf, title_surf.get_rect(center=(w // 2, h // 2 - 80)))
-            exercise_surf = self.font.render(self.enemy.exercise, True, (220, 220, 220)).convert_alpha()
+            exercise_surf = self.font.render(self.enemy.exercise, False, (220, 220, 220))
             screen.blit(exercise_surf, exercise_surf.get_rect(center=(w // 2, h // 2 - 30)))
-            ready_surf = self.font.render("Get ready to exercise!", True, (180, 220, 180)).convert_alpha()
+            ready_surf = self.font.render("Get ready to exercise!", False, (180, 220, 180))
             screen.blit(ready_surf, ready_surf.get_rect(center=(w // 2, h // 2 + 20)))
-            hint_surf = self.font.render("SPACE: Begin calibration   ESC: Skip fight", True, (160, 160, 160)).convert_alpha()
+            hint_surf = self.font.render("SPACE: Begin calibration   ESC: Skip fight", False, (160, 160, 160))
             screen.blit(hint_surf, hint_surf.get_rect(center=(w // 2, h // 2 + 70)))
         else:
             if 0 <= self.step < 2:
-                step_surf = self.font.render(f"CALIBRATION ({self.step + 1}/2)", True, (220, 180, 80)).convert_alpha()
+                step_surf = self.font.render(f"CALIBRATION ({self.step + 1}/2)", False, (220, 180, 80))
                 screen.blit(step_surf, (w // 2 - step_surf.get_width() // 2, h // 2 - 80))
                 if self._waiting_start_ok:
-                    hint_surf = self.font.render("Waiting for device...   ESC: Skip fight", True, (160, 160, 160)).convert_alpha()
+                    hint_surf = self.font.render("Waiting for device...   ESC: Skip fight", False, (160, 160, 160))
                 else:
                     seconds_left = max(1, -(-self._timer // 60))
-                    hint_surf = self.font.render(f"Auto-confirming in {seconds_left}s   ESC: Skip fight", True, (160, 160, 160)).convert_alpha()
+                    hint_surf = self.font.render(f"Auto-confirming in {seconds_left}s   ESC: Skip fight", False, (160, 160, 160))
                 screen.blit(hint_surf, (w // 2 - hint_surf.get_width() // 2, h // 2 + 30))
 
-            instr_surf = self.font.render(self.INSTRUCTIONS[self.step], True, (220, 220, 220)).convert_alpha()
+            instr_surf = self.font.render(self.INSTRUCTIONS[self.step], False, (220, 220, 220))
             screen.blit(instr_surf, (w // 2 - instr_surf.get_width() // 2, h // 2 - 30))
 
             # live stretch bar centred below hint text

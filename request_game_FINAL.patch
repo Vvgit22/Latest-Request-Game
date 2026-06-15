@@ -1,0 +1,288 @@
+diff --git a/battle.py b/battle.py
+index b790da0..ef0cb59 100644
+--- a/battle.py
++++ b/battle.py
+@@ -36,7 +36,7 @@ class BattleScreen:
+ 
+     def run(self, events=None):
+         self.display_surface.fill((20, 20, 40))
+-        self.display_surface.blit(self.background_img)
++        self.display_surface.blit(self.background_img, (0, 0))
+ 
+         w = self.display_surface.get_width()
+         h = self.display_surface.get_height()
+@@ -114,7 +114,15 @@ class BattleScreen:
+                 self._levelled_up = self.player.add_xp(xp)
+                 self._xp_gained = xp
+                 self._victory = True
+-                if not self.back_to.enemy_sprites:
++                last_enemy = not self.back_to.enemy_sprites
++                request_bridge.save_result(
++                    exercise=self.exercise,
++                    reps=getattr(self.enemy, 'reps', self.enemy.hp),
++                    sets=getattr(self.enemy, 'sets', 1),
++                    xp=xp,
++                    workout_complete=last_enemy,
++                )
++                if last_enemy:
+                     self.back_to.drop_key(self.enemy.rect.center)
+ 
+         if self._victory:
+@@ -135,25 +143,47 @@ class BattleScreen:
+         sprite_h = self.enemy.image.get_height()
+ 
+         enemy_bottom = (ey_small + sprite_h) * scale + 120
+-        left = ex_small * scale
+ 
+-        for i in range(self.enemy_hp):
+-            screen.blit(self.heart_img, (left + i * 36 - 4, enemy_bottom))
+-
+-        name_surf = self.font.render(self.enemy.enemy_type.capitalize(), True, (220, 220, 220))
+-        name_y = enemy_bottom + self.heart_img.get_height() + 4
+-        screen.blit(name_surf, (left, name_y))
++        # Show ONE set's worth of hearts at a time (reps per set), refilling each
++        # new set, so a 15-rep set never overflows the screen.
++        reps_per_set = max(1, getattr(self.enemy, 'reps', self.enemy_hp))
++        total_sets   = max(1, getattr(self.enemy, 'sets', 1))
++        total_hp     = reps_per_set * total_sets
++        remaining    = max(0, self.enemy_hp)
++        if remaining == 0:
++            hearts = 0
++        elif remaining % reps_per_set == 0:
++            hearts = reps_per_set            # a fresh, full set
++        else:
++            hearts = remaining % reps_per_set
++        current_set = min(total_sets, (total_hp - remaining) // reps_per_set + 1)
++
++        # Lay the row out so it always fits on screen, shifted left of the enemy.
++        spacing  = 36
++        row_w    = hearts * spacing
++        enemy_cx = ex_small * scale + (sprite_w * scale) // 2
++        start_x  = enemy_cx - row_w // 2
++        start_x  = min(start_x, screen.get_width() - row_w - 24)
++        start_x  = max(24, start_x)
++        for i in range(hearts):
++            screen.blit(self.heart_img, (start_x + i * spacing, enemy_bottom))
++
++        name_surf = self.font.render(
++            f'{self.enemy.enemy_type.capitalize()}   Set {current_set}/{total_sets}',
++            False, (220, 220, 220))
++        name_y = enemy_bottom + self.heart_img.get_height() + 6
++        screen.blit(name_surf, (start_x, name_y))
+ 
+         w_screen, h_screen = screen.get_size()
+         if self._victory:
+             cx = w_screen // 2
+             cy = h_screen // 2 - 48
+-            line1 = self.font.render(f'Enemy defeated!  +{self._xp_gained} XP', True, (255, 220, 80))
++            line1 = self.font.render(f'Enemy defeated!  +{self._xp_gained} XP', False, (255, 220, 80))
+             if self._levelled_up:
+-                line2 = self.font.render(f'LEVEL UP!  Now Lv.{self.player.level}', True, (100, 255, 100))
++                line2 = self.font.render(f'LEVEL UP!  Now Lv.{self.player.level}', False, (100, 255, 100))
+             else:
+-                line2 = self.font.render(f'Lv.{self.player.level}   {self.player.xp} / {self.player.xp_to_next()} XP', True, (180, 180, 180))
+-            line3 = self.font.render('Press SPACE to continue', True, (160, 160, 160))
++                line2 = self.font.render(f'Lv.{self.player.level}   {self.player.xp} / {self.player.xp_to_next()} XP', False, (180, 180, 180))
++            line3 = self.font.render('Press SPACE to continue', False, (160, 160, 160))
+             screen.blit(line1, line1.get_rect(center=(cx, cy)))
+             screen.blit(line2, line2.get_rect(center=(cx, cy + 40)))
+             screen.blit(line3, line3.get_rect(center=(cx, cy + 80)))
+@@ -162,7 +192,7 @@ class BattleScreen:
+                 hint = 'REP: Attack   ESC: Flee'
+             else:
+                 hint = 'HOLD SPACE: Attack   ESC: Flee'
+-            hint_text = self.font.render(hint, True, (180, 180, 180))
++            hint_text = self.font.render(hint, False, (180, 180, 180))
+             screen.blit(hint_text, (16, h_screen - 48))
+ 
+             player_sprite = self.player.animations['right'][0]
+@@ -188,6 +218,6 @@ class BattleScreen:
+ 
+             text_y = bar_bottom_screen + 12
+             for line in lines:
+-                surf = self.font.render(line, True, (200, 200, 200))
++                surf = self.font.render(line, False, (200, 200, 200))
+                 screen.blit(surf, surf.get_rect(center=(bar_cx_screen, text_y)))
+                 text_y += surf.get_height() + 2
+diff --git a/calibration.py b/calibration.py
+index ad9e29d..bde828e 100644
+--- a/calibration.py
++++ b/calibration.py
+@@ -27,7 +27,7 @@ class CalibrationScreen:
+ 
+     def run(self, events=None):
+         self.display_surface.fill((20, 20, 40))
+-        self.display_surface.blit(self.background_img)
++        self.display_surface.blit(self.background_img, (0, 0))
+ 
+         for event in (events or []):
+             if event.type == pygame.QUIT:
+@@ -76,26 +76,26 @@ class CalibrationScreen:
+         h = screen.get_height()
+ 
+         if self.step == -1:
+-            title_surf = self.font.render("EXERCISE", True, (220, 180, 80))
++            title_surf = self.font.render("EXERCISE", False, (220, 180, 80))
+             screen.blit(title_surf, title_surf.get_rect(center=(w // 2, h // 2 - 80)))
+-            exercise_surf = self.font.render(self.enemy.exercise, True, (220, 220, 220))
++            exercise_surf = self.font.render(self.enemy.exercise, False, (220, 220, 220))
+             screen.blit(exercise_surf, exercise_surf.get_rect(center=(w // 2, h // 2 - 30)))
+-            ready_surf = self.font.render("Get ready to exercise!", True, (180, 220, 180))
++            ready_surf = self.font.render("Get ready to exercise!", False, (180, 220, 180))
+             screen.blit(ready_surf, ready_surf.get_rect(center=(w // 2, h // 2 + 20)))
+-            hint_surf = self.font.render("SPACE: Begin calibration   ESC: Skip fight", True, (160, 160, 160))
++            hint_surf = self.font.render("SPACE: Begin calibration   ESC: Skip fight", False, (160, 160, 160))
+             screen.blit(hint_surf, hint_surf.get_rect(center=(w // 2, h // 2 + 70)))
+         else:
+             if 0 <= self.step < 2:
+-                step_surf = self.font.render(f"CALIBRATION ({self.step + 1}/2)", True, (220, 180, 80))
++                step_surf = self.font.render(f"CALIBRATION ({self.step + 1}/2)", False, (220, 180, 80))
+                 screen.blit(step_surf, (w // 2 - step_surf.get_width() // 2, h // 2 - 80))
+                 if self._waiting_start_ok:
+-                    hint_surf = self.font.render("Waiting for device...   ESC: Skip fight", True, (160, 160, 160))
++                    hint_surf = self.font.render("Waiting for device...   ESC: Skip fight", False, (160, 160, 160))
+                 else:
+                     seconds_left = max(1, -(-self._timer // 60))
+-                    hint_surf = self.font.render(f"Auto-confirming in {seconds_left}s   ESC: Skip fight", True, (160, 160, 160))
++                    hint_surf = self.font.render(f"Auto-confirming in {seconds_left}s   ESC: Skip fight", False, (160, 160, 160))
+                 screen.blit(hint_surf, (w // 2 - hint_surf.get_width() // 2, h // 2 + 30))
+ 
+-            instr_surf = self.font.render(self.INSTRUCTIONS[self.step], True, (220, 220, 220))
++            instr_surf = self.font.render(self.INSTRUCTIONS[self.step], False, (220, 220, 220))
+             screen.blit(instr_surf, (w // 2 - instr_surf.get_width() // 2, h // 2 - 30))
+ 
+             # live stretch bar centred below hint text
+diff --git a/connection_screen.py b/connection_screen.py
+index d0bcf73..1cd56a7 100644
+--- a/connection_screen.py
++++ b/connection_screen.py
+@@ -29,9 +29,9 @@ class ConnectionScreen:
+         h = screen.get_height()
+ 
+         dots = '.' * ((self._tick // 30) % 4)
+-        status_surf = self.font.render(f"Searching for StellaController{dots}", True, (220, 220, 220))
++        status_surf = self.font.render(f"Searching for StellaController{dots}", False, (220, 220, 220))
+         #hint_surf = self.font.render("SPACE: Play without controller", True, (140, 140, 140))
+-        instruction = self.font.render("Strap the wearables to your wrist and get ready", True, (190, 190, 190))
++        instruction = self.font.render("Strap the wearables to your wrist and get ready", False, (190, 190, 190))
+ 
+         screen.blit(status_surf, (w // 2 - status_surf.get_width() // 2, h // 2 - 30))
+         screen.blit(instruction,   (w // 2 - instruction.get_width() // 2, h // 2 + 20))
+diff --git a/default.py b/default.py
+index 387e6b7..95a7c3d 100644
+--- a/default.py
++++ b/default.py
+@@ -49,3 +49,22 @@ TUTORIAL_MAP = [
+     ['x',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ','x'],
+     ['x','x','x','x','x','x','x','x','x','x','x','x'],
+ ]
++
++
++def apply_prescription():
++    """Pull the prescribed exercises (name, reps, sets) from the ReQuest
++    dashboard into ENEMY_DATA before the enemies are created.
++    Enemy HP = reps * sets. Matched to enemies by exercise name.
++    Safe if the dashboard isn't running: leaves ENEMY_DATA untouched."""
++    try:
++        import request_bridge
++        plan = request_bridge.get_plan()
++    except Exception:
++        return
++    by_name = {e.get('exercise'): e for e in plan}
++    for data in ENEMY_DATA.values():
++        p = by_name.get(data.get('exercise'))
++        if p:
++            data['reps'] = int(p['reps'])
++            data['sets'] = int(p['sets'])
++            data['hp'] = max(1, int(p['reps']) * int(p['sets']))
+diff --git a/enemy.py b/enemy.py
+index ded6df4..6747dd6 100644
+--- a/enemy.py
++++ b/enemy.py
+@@ -11,6 +11,8 @@ class Enemy(Entity):
+ 
+         data = ENEMY_DATA[enemy_type]
+         self.hp = data['hp']
++        self.reps = data.get('reps', data['hp'])
++        self.sets = data.get('sets', 1)
+         self.exercise = data['exercise']
+         self.animation_speed = data['animation_speed']
+         self.frames = [pygame.image.load(f'graphics/{enemy_type}{i}.png').convert_alpha() for i in range(1, data['frames'] + 1)]
+diff --git a/finish.py b/finish.py
+index a7131f8..f74e0f1 100644
+--- a/finish.py
++++ b/finish.py
+@@ -21,7 +21,7 @@ class FinishScreen:
+ 
+     def draw_ui(self, screen):
+         w, h = screen.get_size()
+-        title = self.font_big.render('Well Done! You have completed today\'s exercises', True, (100, 255, 100))
+-        hint  = self.font_small.render('Press any key to exit', True, (180, 180, 180))
++        title = self.font_big.render('Well Done! You have completed today\'s exercises', False, (100, 255, 100))
++        hint  = self.font_small.render('Press any key to exit', False, (180, 180, 180))
+         screen.blit(title, title.get_rect(center=(w // 2, h // 2 - 30)))
+         screen.blit(hint,  hint.get_rect(center=(w // 2, h // 2 + 30)))
+diff --git a/level.py b/level.py
+index fb5e85f..ff98d13 100644
+--- a/level.py
++++ b/level.py
+@@ -99,7 +99,7 @@ class Level:
+ 
+     def draw_ui(self, screen):
+         p = self.player
+-        text = self._hud_font.render(f'Lv.{p.level}   {p.xp} / {p.xp_to_next()} XP', True, (220, 220, 220))
++        text = self._hud_font.render(f'Lv.{p.level}   {p.xp} / {p.xp_to_next()} XP', False, (220, 220, 220))
+         screen.blit(text, (12, 12))
+ 
+         if self._intro_timer > 0:
+@@ -114,7 +114,7 @@ class Level:
+             screen.blit(panel, box_rect.topleft)
+             ty = box_rect.top + pad
+             for line in intro_lines:
+-                surf = self._hud_font.render(line, True, (220, 220, 200))
++                surf = self._hud_font.render(line, False, (220, 220, 200))
+                 screen.blit(surf, (box_rect.left + pad, ty))
+                 ty += surf.get_height() + 4
+ 
+diff --git a/main.py b/main.py
+index dce5249..1d831bc 100644
+--- a/main.py
++++ b/main.py
+@@ -32,6 +32,7 @@ class SceneManager:
+ class App:
+     def __init__(self):
+         pygame.init()
++        apply_prescription()          # pull prescribed reps/sets into the enemies
+         self._running = True
+         self.size = WIDTH, HEIGHT
+         self.screen = pygame.display.set_mode(self.size)
+diff --git a/tutorial_level.py b/tutorial_level.py
+index c1ee313..994c3b9 100644
+--- a/tutorial_level.py
++++ b/tutorial_level.py
+@@ -81,7 +81,7 @@ class TutorialLevel:
+         return None
+ 
+     def draw_ui(self, screen):
+-        title = self._font.render('Game Tutorial', True, (220, 220, 220))
++        title = self._font.render('Game Tutorial', False, (220, 220, 220))
+         screen.blit(title, (16, 16))
+ 
+         if not self._intro_dismissed:
+@@ -98,7 +98,7 @@ class TutorialLevel:
+             screen.blit(panel, box_rect.topleft)
+             ty = box_rect.top + pad
+             for line in intro_lines:
+-                surf = self._font.render(line, True, (220, 220, 200))
++                surf = self._font.render(line, False, (220, 220, 200))
+                 screen.blit(surf, (box_rect.left + pad, ty))
+                 ty += surf.get_height() + 4
+ 
+@@ -113,6 +113,6 @@ class TutorialLevel:
+             screen.blit(panel, box_rect.topleft)
+             ty = box_rect.top + pad
+             for line in npc.dialogue:
+-                surf = self._font.render(line, True, (220, 220, 200))
++                surf = self._font.render(line, False, (220, 220, 200))
+                 screen.blit(surf, (box_rect.left + pad, ty))
+                 ty += surf.get_height() + 4

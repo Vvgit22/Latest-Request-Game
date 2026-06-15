@@ -143,25 +143,47 @@ class BattleScreen:
         sprite_h = self.enemy.image.get_height()
 
         enemy_bottom = (ey_small + sprite_h) * scale + 120
-        left = ex_small * scale
 
-        for i in range(self.enemy_hp):
-            screen.blit(self.heart_img, (left + i * 36 - 4, enemy_bottom))
+        # Show ONE set's worth of hearts at a time (reps per set), refilling each
+        # new set, so a 15-rep set never overflows the screen.
+        reps_per_set = max(1, getattr(self.enemy, 'reps', self.enemy_hp))
+        total_sets   = max(1, getattr(self.enemy, 'sets', 1))
+        total_hp     = reps_per_set * total_sets
+        remaining    = max(0, self.enemy_hp)
+        if remaining == 0:
+            hearts = 0
+        elif remaining % reps_per_set == 0:
+            hearts = reps_per_set            # a fresh, full set
+        else:
+            hearts = remaining % reps_per_set
+        current_set = min(total_sets, (total_hp - remaining) // reps_per_set + 1)
 
-        name_surf = self.font.render(self.enemy.enemy_type.capitalize(), True, (220, 220, 220)).convert_alpha()
-        name_y = enemy_bottom + self.heart_img.get_height() + 4
-        screen.blit(name_surf, (left, name_y))
+        # Lay the row out so it always fits on screen, shifted left of the enemy.
+        spacing  = 36
+        row_w    = hearts * spacing
+        enemy_cx = ex_small * scale + (sprite_w * scale) // 2
+        start_x  = enemy_cx - row_w // 2
+        start_x  = min(start_x, screen.get_width() - row_w - 24)
+        start_x  = max(24, start_x)
+        for i in range(hearts):
+            screen.blit(self.heart_img, (start_x + i * spacing, enemy_bottom))
+
+        name_surf = self.font.render(
+            f'{self.enemy.enemy_type.capitalize()}   Set {current_set}/{total_sets}',
+            False, (220, 220, 220))
+        name_y = enemy_bottom + self.heart_img.get_height() + 6
+        screen.blit(name_surf, (start_x, name_y))
 
         w_screen, h_screen = screen.get_size()
         if self._victory:
             cx = w_screen // 2
             cy = h_screen // 2 - 48
-            line1 = self.font.render(f'Enemy defeated!  +{self._xp_gained} XP', True, (255, 220, 80)).convert_alpha()
+            line1 = self.font.render(f'Enemy defeated!  +{self._xp_gained} XP', False, (255, 220, 80))
             if self._levelled_up:
-                line2 = self.font.render(f'LEVEL UP!  Now Lv.{self.player.level}', True, (100, 255, 100)).convert_alpha()
+                line2 = self.font.render(f'LEVEL UP!  Now Lv.{self.player.level}', False, (100, 255, 100))
             else:
-                line2 = self.font.render(f'Lv.{self.player.level}   {self.player.xp} / {self.player.xp_to_next()} XP', True, (180, 180, 180)).convert_alpha()
-            line3 = self.font.render('Press SPACE to continue', True, (160, 160, 160)).convert_alpha()
+                line2 = self.font.render(f'Lv.{self.player.level}   {self.player.xp} / {self.player.xp_to_next()} XP', False, (180, 180, 180))
+            line3 = self.font.render('Press SPACE to continue', False, (160, 160, 160))
             screen.blit(line1, line1.get_rect(center=(cx, cy)))
             screen.blit(line2, line2.get_rect(center=(cx, cy + 40)))
             screen.blit(line3, line3.get_rect(center=(cx, cy + 80)))
@@ -170,7 +192,7 @@ class BattleScreen:
                 hint = 'REP: Attack   ESC: Flee'
             else:
                 hint = 'HOLD SPACE: Attack   ESC: Flee'
-            hint_text = self.font.render(hint, True, (180, 180, 180)).convert_alpha()
+            hint_text = self.font.render(hint, False, (180, 180, 180))
             screen.blit(hint_text, (16, h_screen - 48))
 
             player_sprite = self.player.animations['right'][0]
@@ -196,6 +218,6 @@ class BattleScreen:
 
             text_y = bar_bottom_screen + 12
             for line in lines:
-                surf = self.font.render(line, True, (200, 200, 200)).convert_alpha()
+                surf = self.font.render(line, False, (200, 200, 200))
                 screen.blit(surf, surf.get_rect(center=(bar_cx_screen, text_y)))
                 text_y += surf.get_height() + 2
