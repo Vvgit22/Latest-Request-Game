@@ -99,7 +99,7 @@ class Level:
 
     def draw_ui(self, screen):
         p = self.player
-        text = self._hud_font.render(f'Lv.{p.level}   {p.xp} / {p.xp_to_next()} XP', True, (220, 220, 220))
+        text = self._hud_font.render(f'Lv.{p.level}   {p.xp} / {p.xp_to_next()} XP', True, (220, 220, 220)).convert_alpha()
         screen.blit(text, (12, 12))
 
         if self._intro_timer > 0:
@@ -114,7 +114,7 @@ class Level:
             screen.blit(panel, box_rect.topleft)
             ty = box_rect.top + pad
             for line in intro_lines:
-                surf = self._hud_font.render(line, True, (220, 220, 200))
+                surf = self._hud_font.render(line, True, (220, 220, 200)).convert_alpha()
                 screen.blit(surf, (box_rect.left + pad, ty))
                 ty += surf.get_height() + 4
 

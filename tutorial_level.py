@@ -81,7 +81,7 @@ class TutorialLevel:
         return None
 
     def draw_ui(self, screen):
-        title = self._font.render('Game Tutorial', True, (220, 220, 220))
+        title = self._font.render('Game Tutorial', True, (220, 220, 220)).convert_alpha()
         screen.blit(title, (16, 16))
 
         if not self._intro_dismissed:
@@ -98,7 +98,7 @@ class TutorialLevel:
             screen.blit(panel, box_rect.topleft)
             ty = box_rect.top + pad
             for line in intro_lines:
-                surf = self._font.render(line, True, (220, 220, 200))
+                surf = self._font.render(line, True, (220, 220, 200)).convert_alpha()
                 screen.blit(surf, (box_rect.left + pad, ty))
                 ty += surf.get_height() + 4
 
@@ -113,6 +113,6 @@ class TutorialLevel:
             screen.blit(panel, box_rect.topleft)
             ty = box_rect.top + pad
             for line in npc.dialogue:
-                surf = self._font.render(line, True, (220, 220, 200))
+                surf = self._font.render(line, True, (220, 220, 200)).convert_alpha()
                 screen.blit(surf, (box_rect.left + pad, ty))
                 ty += surf.get_height() + 4
