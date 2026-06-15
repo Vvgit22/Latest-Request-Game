@@ -49,3 +49,22 @@ TUTORIAL_MAP = [
     ['x',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ','x'],
     ['x','x','x','x','x','x','x','x','x','x','x','x'],
 ]
+
+
+def apply_prescription():
+    """Pull the prescribed exercises (name, reps, sets) from the ReQuest
+    dashboard into ENEMY_DATA before the enemies are created.
+    Enemy HP = reps * sets. Matched to enemies by exercise name.
+    Safe if the dashboard isn't running: leaves ENEMY_DATA untouched."""
+    try:
+        import request_bridge
+        plan = request_bridge.get_plan()
+    except Exception:
+        return
+    by_name = {e.get('exercise'): e for e in plan}
+    for data in ENEMY_DATA.values():
+        p = by_name.get(data.get('exercise'))
+        if p:
+            data['reps'] = int(p['reps'])
+            data['sets'] = int(p['sets'])
+            data['hp'] = max(1, int(p['reps']) * int(p['sets']))

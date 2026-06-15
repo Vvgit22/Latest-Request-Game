@@ -36,7 +36,7 @@ class BattleScreen:
 
     def run(self, events=None):
         self.display_surface.fill((20, 20, 40))
-        self.display_surface.blit(self.background_img)
+        self.display_surface.blit(self.background_img, (0, 0))
 
         w = self.display_surface.get_width()
         h = self.display_surface.get_height()
@@ -114,7 +114,15 @@ class BattleScreen:
                 self._levelled_up = self.player.add_xp(xp)
                 self._xp_gained = xp
                 self._victory = True
-                if not self.back_to.enemy_sprites:
+                last_enemy = not self.back_to.enemy_sprites
+                request_bridge.save_result(
+                    exercise=self.exercise,
+                    reps=getattr(self.enemy, 'reps', self.enemy.hp),
+                    sets=getattr(self.enemy, 'sets', 1),
+                    xp=xp,
+                    workout_complete=last_enemy,
+                )
+                if last_enemy:
                     self.back_to.drop_key(self.enemy.rect.center)
 
         if self._victory:

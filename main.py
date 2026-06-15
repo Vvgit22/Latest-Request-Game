@@ -32,6 +32,7 @@ class SceneManager:
 class App:
     def __init__(self):
         pygame.init()
+        apply_prescription()          # pull prescribed reps/sets into the enemies
         self._running = True
         self.size = WIDTH, HEIGHT
         self.screen = pygame.display.set_mode(self.size)

@@ -11,6 +11,8 @@ class Enemy(Entity):
 
         data = ENEMY_DATA[enemy_type]
         self.hp = data['hp']
+        self.reps = data.get('reps', data['hp'])
+        self.sets = data.get('sets', 1)
         self.exercise = data['exercise']
         self.animation_speed = data['animation_speed']
         self.frames = [pygame.image.load(f'graphics/{enemy_type}{i}.png').convert_alpha() for i in range(1, data['frames'] + 1)]

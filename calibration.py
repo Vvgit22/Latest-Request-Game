@@ -27,7 +27,7 @@ class CalibrationScreen:
 
     def run(self, events=None):
         self.display_surface.fill((20, 20, 40))
-        self.display_surface.blit(self.background_img)
+        self.display_surface.blit(self.background_img, (0, 0))
 
         for event in (events or []):
             if event.type == pygame.QUIT:
