@@ -225,6 +225,22 @@ async def post_result(payload: dict):
     """Called when an enemy is defeated = one prescribed exercise completed.
     Logs {exercise, reps, sets, xp} and, once every exercise in the plan has
     been defeated, marks the WORKOUT complete (+1 character level)."""
+    # The game's finish screen sends {"finish": true} when the player presses
+    # space on 'Well Done'. That is when we complete the workout and tell the
+    # dashboard to jump to the check-in (using the XP/exercises tallied so far).
+    if payload.get("finish"):
+        summary = {
+            "type": "workout",
+            "patient": payload.get("patient", _session.get("patient")),
+            "exercises": list(_workout["done"]),
+            "xp_total": _workout["xp"], "level_gain": 1, "ts": time.time(),
+        }
+        _append_log(summary)
+        _broadcast({"type": "workout_done", "level_gain": 1,
+                    "xp_total": _workout["xp"], "exercises": list(_workout["done"])})
+        _workout["done"] = []; _workout["xp"] = 0
+        return {"ok": True, "finished": True}
+
     name = payload.get("exercise") or _current_exercise_name() or "Exercise"
     entry = {
         "type": "exercise",
@@ -242,10 +258,11 @@ async def post_result(payload: dict):
     _broadcast({"type": "result", "result": entry,
                 "done_count": len(_workout["done"]), "xp_session": _workout["xp"]})
 
-    # workout is done once every prescribed exercise has been defeated
-    plan_names = [e["exercise"] for e in (_session.get("plan") or [])]
-    done_all = bool(plan_names) and all(n in _workout["done"] for n in plan_names)
-    if payload.get("workout_complete") or done_all:
+    # Completion is driven by the finish screen ({"finish": true}) above, so the
+    # dashboard switches to the check-in when the player presses space — not
+    # mid-game. (Manual override: a save_result with workout_complete=True still
+    # completes, as a fallback.)
+    if payload.get("workout_complete"):
         summary = {
             "type": "workout", "patient": entry["patient"],
             "exercises": list(_workout["done"]),
