@@ -107,3 +107,17 @@ def save_result(exercise, reps, sets, xp=50, workout_complete=False, **extra):
         except Exception:
             pass
     threading.Thread(target=_go, daemon=True).start()
+
+
+def finish_workout():
+    """Tell the dashboard the workout is over. Called once from the finish
+    screen on the player's keypress, so the dashboard jumps to the check-in
+    exactly then. Synchronous (it's the last thing before the game exits) and
+    safe if the companion isn't running."""
+    try:
+        req = urllib.request.Request(
+            _URL + "/api/result", data=json.dumps({"finish": True}).encode(),
+            headers={"Content-Type": "application/json"})
+        urllib.request.urlopen(req, timeout=1)
+    except Exception:
+        pass

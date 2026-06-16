@@ -1,5 +1,5 @@
 diff --git a/battle.py b/battle.py
-index b790da0..ef0cb59 100644
+index b790da0..c7e79d6 100644
 --- a/battle.py
 +++ b/battle.py
 @@ -36,7 +36,7 @@ class BattleScreen:
@@ -11,7 +11,7 @@ index b790da0..ef0cb59 100644
  
          w = self.display_surface.get_width()
          h = self.display_surface.get_height()
-@@ -114,7 +114,15 @@ class BattleScreen:
+@@ -114,7 +114,14 @@ class BattleScreen:
                  self._levelled_up = self.player.add_xp(xp)
                  self._xp_gained = xp
                  self._victory = True
@@ -22,13 +22,12 @@ index b790da0..ef0cb59 100644
 +                    reps=getattr(self.enemy, 'reps', self.enemy.hp),
 +                    sets=getattr(self.enemy, 'sets', 1),
 +                    xp=xp,
-+                    workout_complete=last_enemy,
 +                )
 +                if last_enemy:
                      self.back_to.drop_key(self.enemy.rect.center)
  
          if self._victory:
-@@ -135,25 +143,47 @@ class BattleScreen:
+@@ -135,25 +142,47 @@ class BattleScreen:
          sprite_h = self.enemy.image.get_height()
  
          enemy_bottom = (ey_small + sprite_h) * scale + 120
@@ -87,7 +86,7 @@ index b790da0..ef0cb59 100644
              screen.blit(line1, line1.get_rect(center=(cx, cy)))
              screen.blit(line2, line2.get_rect(center=(cx, cy + 40)))
              screen.blit(line3, line3.get_rect(center=(cx, cy + 80)))
-@@ -162,7 +192,7 @@ class BattleScreen:
+@@ -162,7 +191,7 @@ class BattleScreen:
                  hint = 'REP: Attack   ESC: Flee'
              else:
                  hint = 'HOLD SPACE: Attack   ESC: Flee'
@@ -96,7 +95,7 @@ index b790da0..ef0cb59 100644
              screen.blit(hint_text, (16, h_screen - 48))
  
              player_sprite = self.player.animations['right'][0]
-@@ -188,6 +218,6 @@ class BattleScreen:
+@@ -188,6 +217,6 @@ class BattleScreen:
  
              text_y = bar_bottom_screen + 12
              for line in lines:
@@ -209,10 +208,24 @@ index ded6df4..6747dd6 100644
          self.animation_speed = data['animation_speed']
          self.frames = [pygame.image.load(f'graphics/{enemy_type}{i}.png').convert_alpha() for i in range(1, data['frames'] + 1)]
 diff --git a/finish.py b/finish.py
-index a7131f8..f74e0f1 100644
+index a7131f8..6be6237 100644
 --- a/finish.py
 +++ b/finish.py
-@@ -21,7 +21,7 @@ class FinishScreen:
+@@ -1,5 +1,6 @@
+ import pygame
+ import sys
++import request_bridge
+ 
+ 
+ class FinishScreen:
+@@ -15,13 +16,14 @@ class FinishScreen:
+                 pygame.quit()
+                 sys.exit()
+             if event.type == pygame.KEYDOWN:
++                request_bridge.finish_workout()   # space -> dashboard goes to the check-in
+                 pygame.quit()
+                 sys.exit()
+         return None
  
      def draw_ui(self, screen):
          w, h = screen.get_size()

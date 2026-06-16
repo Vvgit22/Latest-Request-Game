@@ -120,7 +120,6 @@ class BattleScreen:
                     reps=getattr(self.enemy, 'reps', self.enemy.hp),
                     sets=getattr(self.enemy, 'sets', 1),
                     xp=xp,
-                    workout_complete=last_enemy,
                 )
                 if last_enemy:
                     self.back_to.drop_key(self.enemy.rect.center)

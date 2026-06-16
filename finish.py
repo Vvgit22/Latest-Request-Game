@@ -1,5 +1,6 @@
 import pygame
 import sys
+import request_bridge
 
 
 class FinishScreen:
@@ -15,6 +16,7 @@ class FinishScreen:
                 pygame.quit()
                 sys.exit()
             if event.type == pygame.KEYDOWN:
+                request_bridge.finish_workout()   # space -> dashboard goes to the check-in
                 pygame.quit()
                 sys.exit()
         return None
