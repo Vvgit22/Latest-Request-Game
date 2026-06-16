@@ -250,5 +250,14 @@
     "xp_total": 675,
     "level_gain": 1,
     "ts": 1781579317.8700466
+  },
+  {
+    "type": "exercise",
+    "patient": "vv",
+    "exercise": "Banded I-Y-T Raises",
+    "reps": 3,
+    "sets": 2,
+    "xp": 100,
+    "ts": 1781599261.362596
   }
 ]

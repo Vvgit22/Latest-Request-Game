@@ -35,7 +35,7 @@ class App:
         apply_prescription()          # pull prescribed reps/sets into the enemies
         self._running = True
         self.size = WIDTH, HEIGHT
-        self.screen = pygame.display.set_mode(self.size)
+        self.screen = pygame.display.set_mode(self.size, pygame.FULLSCREEEN | pygame.SCALED)
         pygame.display.set_caption('ReQuest')
         self._game_surf = pygame.Surface((WIDTH // SCALE, HEIGHT // SCALE))
         self.ble_controller = BleController()
@@ -64,6 +64,8 @@ class App:
             self._running = False
         if event.type == pygame.KEYDOWN and event.key == pygame.K_q:
             self._running = False
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_F11:
+            pygame.display.toggle_fullscreen()
 
 
 if __name__ == "__main__":

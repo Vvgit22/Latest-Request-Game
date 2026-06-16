@@ -1,5 +1,5 @@
 {
-  "patient": "Marcus",
+  "patient": "raph",
   "resistance": "medium",
   "plan": [
     {
@@ -9,15 +9,15 @@
     },
     {
       "exercise": "Banded I-Y-T Raises",
-      "reps": 4,
-      "sets": 2
+      "reps": 15,
+      "sets": 3
     },
     {
       "exercise": "Single-Arm Row to Press",
-      "reps": 1,
-      "sets": 1
+      "reps": 10,
+      "sets": 3
     }
   ],
   "current": 0,
-  "updated": 1781579342.6033788
+  "updated": 1781601706.287392
 }
