@@ -1,218 +1,600 @@
-# ReQuest Companion — run HER pygame from the web app
+ReQuest Companion
 
-Her pygame script stays **completely untouched in her own repo**, sensors and all.
-The companion is a small local helper you start once; after that, everything is
-clickable from the ReQuest prototype.
+Run the local PyGame application directly from the ReQuest web prototype.
 
-## Setup (once, on the demo machine)
+The PyGame game remains in its own repository and keeps its existing sensor integration and game logic. The ReQuest companion acts only as a local bridge between the browser dashboard and the game.
 
-```bash
+⸻
+
+Overview
+
+The companion provides three main functions:
+
+1. Launch the PyGame game from the browser
+2. Send exercise prescriptions from the dashboard to the game
+3. Send completed exercise/workout results back to the dashboard
+
+The communication flow is:
+
+ReQuest Dashboard
+       │
+       │ reps / sets / exercise plan
+       ▼
+   session.json
+       │
+       ▼
+    PyGame
+       │
+       │ exercise completed
+       ▼
+request_bridge.save_result(...)
+       │
+       ▼
+ReQuest Dashboard
+
+⸻
+
+1. Setup
+
+Install the companion dependencies:
+
 pip install -r requirements.txt
-python bridge.py --game /path/to/her_repo/her_game.py
-```
 
-(Use `--game demo_game.py` to test without her repo.)
+Start the companion and provide the path to the PyGame entry script:
 
-Open **http://localhost:8765** (the companion serves `request-app.html`), log in,
-go to **Play**. The Crystal Caverns screen now shows a launch panel:
+python bridge.py --game /path/to/game_repo/game.py
 
-| button | what happens |
-|---|---|
-| **▶ LAUNCH GAME** | runs her script exactly like typing `python her_game.py` in a terminal — her real PyGame window pops up, she plays with the sensors as normal |
-| **LAUNCH + MIRROR** | same native window, but every frame is also streamed live into the Crystal Caverns screen (red LIVE · PYGAME badge) |
-| **STOP GAME** | terminates the running game |
+For testing without the full game:
 
-A browser can't execute local commands on its own — that's exactly what the
-companion exists for. The button sends `POST /api/launch`; the companion runs the
-command. The old built-in JS demo game and the STRETCH button are **removed** —
-that screen belongs to her game now.
+python bridge.py --game demo_game.py
 
-## Reps & sets: dashboard → her game
+Then open:
 
-Wired in two places:
+http://localhost:8765
 
-1. **Play view** — "Game link" card: set *Reps / set* and *Sets*, press **Send to game**.
-2. **Physio portal** — *Adjust program → Done* pushes the patient's new reps too.
+The companion serves request-app.html.
 
-On every push the companion:
-- writes **`session.json` next to her script** (so she can just read a file),
-- posts a pygame event (`USEREVENT + 7`) into the running game (live updates),
-- serves it at `GET /api/session`.
+Log in and open the Play page.
 
-Her game consumes it however she prefers — file, API, event, or not at all.
-Optional one-liner via the bundled helper:
+⸻
 
-```python
-import request_bridge
-cfg = request_bridge.get_session()      # {'reps': 18, 'sets': 4, ...}
-# live mid-game (optional):
-#   if event.type == request_bridge.SESSION_EVENT: cfg = event.session
-```
+2. Launching the Game
 
-`demo_game.py` shows the full pattern (enemy HP = reps). If the companion isn't
-running, `get_session()` returns defaults — her script still works standalone.
+The Crystal Caverns screen contains three controls:
 
+Button	Behaviour
+▶ LAUNCH GAME	Starts the PyGame script in its normal native window
+LAUNCH + MIRROR	Starts the native PyGame window and streams a live copy into the web page
+STOP GAME	Terminates the running game
 
+A browser cannot execute local Python commands directly.
 
+The companion solves this by exposing:
 
+POST /api/launch
 
-## After a workout: auto check-in + optional saved progress
+The browser calls this endpoint and the companion launches the configured PyGame script locally.
 
-When a full workout completes, the game reports it (save_result / auto-save on
-exit). The website then: shows a "Workout complete" toast, records the session,
-and for the patient view automatically jumps to the daily check-in (pain /
-soreness self-report) with a summary banner of what was just done.
+The native PyGame window remains the primary game interface.
 
-Saved progress (optional, off by default): in Settings there's a "Record my
-progress" toggle. When on, the patient's level, check-in history, messages and
-last workout are saved in the browser (localStorage) and merged back over the
-seeded demo data on the next refresh, so a refresh no longer wipes the run.
-"New session" still does a full reset (clears recorded progress) for the next
-demo. Completed workouts are also always persisted server-side in
-workout_log.json by the companion.
+⸻
 
+3. Dashboard → Game
 
-## The game <-> dashboard contract (current)
+The dashboard sends the prescribed workout to the game.
 
-DASHBOARD -> GAME (enemy encounters): file-based, via session.json.
-  request_bridge.get_plan() returns the workout: one entry per enemy/exercise
-  with its exercise name, reps and sets. Build one enemy encounter per entry.
+The plan contains one entry per exercise:
 
-GAME -> DASHBOARD (only when an enemy is defeated): one call.
-  request_bridge.save_result(exercise=<name>, reps=<n>, sets=<n>, xp=50)
-  Call it the moment an enemy goes down (= that prescribed exercise is done).
-  No live rep/ROM streaming, no report() — only this discrete save on defeat.
-
-WORKOUT DONE (automatic): the dashboard knows the full plan, so once every
-enemy in it has been defeated it marks the workout complete on its own:
-  * the character gains +1 level,
-  * total XP = 50 x (number of exercises) is credited,
-  * the patient is taken to the check-in page with a "workout complete" banner.
-You don't call anything extra. (Fallback, only if your enemy names ever differ
-from the plan names: save_result(..., workout_complete=True) on the last enemy.)
-
-Everything is saved to workout_log.json next to the game: one record per
-defeated enemy {exercise, reps, sets, xp} plus a summary record per completed
-workout {exercises, xp_total, level_gain}.
-
-The minimal integration (drop into your battle loop):
-
-    import request_bridge
-    plan = request_bridge.get_plan()          # build enemies from this
-    # ... when an enemy is defeated:
-    request_bridge.save_result(exercise=enemy.exercise_name,
-                               reps=enemy.reps, sets=enemy.sets, xp=50)
-    # ...that's it. The dashboard handles "workout done" + level-up.
-
-## Known fix: battle.py blit error
-
-    self.display_surface.blit(self.background_img)
-    -> TypeError: function missing required argument 'dest'
-
-pygame's Surface.blit needs a destination position. Fix:
-
-    self.display_surface.blit(self.background_img, (0, 0))
-
-
-## What the game reads (for the game developer)
-
-The dashboard never writes into the game's memory directly — it writes a small
-file the game reads, so the game stays in control. On every reps/sets change the
-companion writes **session.json next to the game script**:
-
+{
+  "patient": "Marcus",
+  "plan": [
     {
-      "patient": "Marcus",
-      "plan": [
-        {"exercise": "Shoulder External Rotation", "reps": 12, "sets": 3},
-        {"exercise": "Banded I-Y-T Raises",        "reps": 15, "sets": 3},
-        {"exercise": "Single-Arm Row to Press",    "reps": 10, "sets": 3}
-      ],
-      "current": 0,                                # which exercise is active
-      "resistance": "medium",
-      "updated": 1700000000.0
+      "exercise": "Shoulder External Rotation",
+      "reps": 12,
+      "sets": 3
+    },
+    {
+      "exercise": "Banded I-Y-T Raises",
+      "reps": 15,
+      "sets": 3
+    },
+    {
+      "exercise": "Single-Arm Row to Press",
+      "reps": 10,
+      "sets": 3
     }
+  ],
+  "current": 0,
+  "resistance": "medium",
+  "updated": 1700000000.0
+}
 
-There is one copy of each exercise (in `plan`); `current` points at the active
-one. request_bridge.get_plan() returns the list, current_exercise() returns the
-active one. It refreshes on every dashboard change (updated = timestamp); get_session() is cached and only re-reads when the file changes.
+This configuration is written to:
 
-Read it any of these ways (all optional, pick one):
-  * the file session.json directly (path also in env REQUEST_BRIDGE_SESSION)
-  * request_bridge.get_session()  (cached helper)
-  * the pygame event request_bridge.SESSION_EVENT (USEREVENT+7) for live updates
-  * HTTP GET /api/session
+session.json
 
-It carries the prescribed reps/sets PER EXERCISE (the "exercise" field tells you
-which). It does NOT touch lives or any other game variable — how reps map to
-enemy HP, lives, score, etc. is entirely the game's own code. In the ReQuest
-concept reps map to enemy hit points (1 rep = 1 hit), not lives.
+next to the game script.
 
-Defaults: the reps/sets sent start from the physio's prescription for that
-patient/exercise (set in the physio dashboard). The patient can override them in
-the game dashboard for a single session, but the prescription is the source.
+The dashboard updates the file whenever reps or sets change.
 
-## Saving workout data (reps done, level, score)
+⸻
 
-The game reports its results back to the dashboard, and they are saved to
-**workout_log.json** next to her script. Two optional one-liners:
+Where Reps and Sets Can Be Changed
 
-    import request_bridge
-    # during the workout, whenever numbers change:
-    request_bridge.report(reps_done=hits, sets_done=cleared, level=lvl, score=score)
-    # when the workout ends (or just rely on auto-save when the window closes):
-    request_bridge.save_result(reps_done=hits, sets_done=cleared,
-                               level=lvl, score=score, completed=True)
+Patient Play View
 
-While the game runs, the Play view shows live "This session" numbers; finished
-workouts appear under "Saved workouts" and persist in workout_log.json. If she
-only calls report(...) and the game closes without save_result(...), the last
-reported stats are auto-saved on exit. Both calls are fire-and-forget on a
-background thread, so they never slow the game. demo_game.py shows the pattern.
+The Game link card allows:
 
-Endpoints (if she wants them directly): POST /api/progress, POST /api/result,
-GET /api/results.
+* Reps per set
+* Number of sets
 
-## Performance (read if mirroring ever feels slow)
+Press:
 
-Mirroring adds almost nothing to the game loop: the game thread only does a
-cheap raw-pixel grab (~1-2 ms, capped to 18/sec); all JPEG encoding and
-network sending happen on a separate worker thread that drops frames if it
-falls behind. So the game runs at full speed whether mirrored or not.
+Send to game
 
-If her game still feels slower in *native* (non-mirror) launch, the usual
-cause is reading session.json every frame. Use the bundled helper, which
-caches and won't touch the disk on a hot loop:
+to send the updated values.
 
-    import request_bridge
-    cfg = request_bridge.get_session()          # call ONCE before the loop
-    # update live only when the dashboard sends new values:
-    #   if event.type == request_bridge.SESSION_EVENT: cfg = event.session
+Physio Portal
 
-Tuning knobs at the top of runner.py: MIRROR_FPS, JPEG_QUALITY, MAX_WIDTH.
-Lower them for a weaker machine; raise MIRROR_FPS for a smoother mirror.
+Changes made under:
 
-## Best practice for playing
+Adjust program → Done
 
-Play in the **real pygame window** (sensors drive it directly, zero latency).
-The mirror in the Crystal Caverns screen is a live *view* for the dashboard /
-audience. Driving the game by clicking/keying the browser frame works but
-adds network latency, so it's for convenience, not primary play.
+are also sent to the game.
 
-## Files
+⸻
 
-| file | role |
-|---|---|
-| `bridge.py` | the companion: serves the app, launch/stop, session API, frame relay |
-| `runner.py` | used only by LAUNCH + MIRROR: runs her script unchanged and streams its frames |
-| `request-app.html` | updated prototype (launch panel in Play, dashboard→game wiring) |
-| `request_bridge.py` | optional 1-import helper for the game side |
-| `demo_game.py` | ordinary pygame script standing in for hers |
+4. Reading the Workout Plan in PyGame
 
-## Notes
+Import the helper:
 
-- Mirror mode is read-mostly: sensors keep driving her game; keys/clicks on the
-  mirrored frame are forwarded as ordinary pygame events but can be ignored.
-- If the companion is off, the Play screen says so with the exact command to run,
-  and the rest of the prototype works untouched.
-- Port/quality knobs at the top of `bridge.py` / `runner.py` (default port 8765).
-- Tested with pygame-ce 2.5.7 / Python 3.12; plain pygame works too.
+import request_bridge
+
+Get the full prescribed workout:
+
+plan = request_bridge.get_plan()
+
+Example:
+
+[
+    {
+        "exercise": "Shoulder External Rotation",
+        "reps": 12,
+        "sets": 3
+    },
+    {
+        "exercise": "Banded I-Y-T Raises",
+        "reps": 15,
+        "sets": 3
+    }
+]
+
+Create one enemy encounter for each exercise.
+
+For example:
+
+for exercise in plan:
+    create_enemy(
+        exercise_name=exercise["exercise"],
+        reps=exercise["reps"],
+        sets=exercise["sets"]
+    )
+
+In the ReQuest game concept:
+
+1 prescribed rep = 1 enemy hit point
+
+The dashboard does not modify lives, enemy behaviour, score, or other internal game variables.
+
+Those remain controlled by the game.
+
+⸻
+
+5. Reading Session Data
+
+There are several supported methods.
+
+Recommended: request_bridge
+
+import request_bridge
+cfg = request_bridge.get_session()
+
+Get the current exercise:
+
+exercise = request_bridge.current_exercise()
+
+Get the full plan:
+
+plan = request_bridge.get_plan()
+
+⸻
+
+Direct File Access
+
+Read:
+
+session.json
+
+The path is also available in:
+
+REQUEST_BRIDGE_SESSION
+
+⸻
+
+HTTP API
+
+GET /api/session
+
+⸻
+
+Live PyGame Event
+
+When the dashboard changes the workout during a running session, the companion can emit:
+
+request_bridge.SESSION_EVENT
+
+which corresponds to:
+
+USEREVENT + 7
+
+Example:
+
+if event.type == request_bridge.SESSION_EVENT:
+    cfg = event.session
+
+⸻
+
+6. Game → Dashboard
+
+The main integration point is extremely small.
+
+When an enemy is defeated, report the completed exercise:
+
+request_bridge.save_result(
+    exercise=enemy.exercise_name,
+    reps=enemy.reps,
+    sets=enemy.sets,
+    xp=50
+)
+
+Call this once when the enemy is defeated.
+
+That is enough for the dashboard to record the exercise.
+
+No continuous rep or ROM streaming is required.
+
+⸻
+
+7. Minimal Game Integration
+
+The minimal required integration is:
+
+import request_bridge
+plan = request_bridge.get_plan()
+# Build one enemy encounter per exercise in plan.
+# When an enemy is defeated:
+request_bridge.save_result(
+    exercise=enemy.exercise_name,
+    reps=enemy.reps,
+    sets=enemy.sets,
+    xp=50
+)
+
+That is the core game ↔ dashboard contract.
+
+⸻
+
+8. Automatic Workout Completion
+
+The dashboard already knows every exercise in the prescribed plan.
+
+It tracks which exercises have been reported as completed.
+
+Once every exercise has been completed, the workout is automatically marked complete.
+
+The dashboard then:
+
+* adds +1 level
+* awards 50 XP per completed exercise
+* records the workout
+* displays a Workout complete notification
+* redirects the patient to the post-workout check-in
+
+For example, a three-exercise workout gives:
+
+3 exercises × 50 XP = 150 XP
+
+No additional completion call is normally required.
+
+⸻
+
+Fallback Completion Signal
+
+If enemy names do not exactly match the exercise names in the plan, the final enemy can explicitly mark the workout complete:
+
+request_bridge.save_result(
+    exercise=enemy.exercise_name,
+    reps=enemy.reps,
+    sets=enemy.sets,
+    xp=50,
+    workout_complete=True
+)
+
+This should only be used as a fallback.
+
+⸻
+
+9. Workout Storage
+
+Completed exercise data is stored in:
+
+workout_log.json
+
+next to the game.
+
+Each defeated enemy produces a record similar to:
+
+{
+  "exercise": "Shoulder External Rotation",
+  "reps": 12,
+  "sets": 3,
+  "xp": 50
+}
+
+A completed workout also creates a summary record containing information such as:
+
+{
+  "exercises": 3,
+  "xp_total": 150,
+  "level_gain": 1
+}
+
+⸻
+
+10. Post-Workout Check-In
+
+Once the workout is complete, the patient is automatically taken to the daily check-in.
+
+The check-in includes:
+
+* pain
+* soreness
+* post-workout self-report
+
+A summary banner shows the workout that was just completed.
+
+⸻
+
+11. Optional Saved Progress
+
+Persistent browser progress is disabled by default.
+
+It can be enabled under:
+
+Settings → Record my progress
+
+When enabled, the browser stores:
+
+* patient level
+* check-in history
+* messages
+* last workout
+
+using:
+
+localStorage
+
+Refreshing the web page therefore does not reset the session.
+
+Selecting New session clears the saved browser progress for a fresh demo.
+
+Completed workouts remain persisted separately in:
+
+workout_log.json
+
+⸻
+
+12. Optional Live Progress Reporting
+
+The main integration only requires save_result() when an enemy is defeated.
+
+Live progress can optionally be reported during gameplay:
+
+request_bridge.report(
+    reps_done=hits,
+    sets_done=cleared,
+    level=lvl,
+    score=score
+)
+
+The Play page can then display live This session statistics.
+
+At the end of the workout:
+
+request_bridge.save_result(
+    reps_done=hits,
+    sets_done=cleared,
+    level=lvl,
+    score=score,
+    completed=True
+)
+
+If only report() is used and the game closes unexpectedly, the most recently reported values can be saved automatically on exit.
+
+These calls run asynchronously so they do not block the PyGame loop.
+
+⸻
+
+13. Progress API
+
+Available endpoints:
+
+POST /api/progress
+POST /api/result
+GET /api/results
+GET /api/session
+
+⸻
+
+14. Mirror Mode
+
+LAUNCH + MIRROR keeps the native PyGame window running normally while also displaying the game inside the Crystal Caverns page.
+
+The native window remains the recommended way to play.
+
+The mirrored view is intended primarily for:
+
+* demonstrations
+* physiotherapist monitoring
+* audience viewing
+* dashboard integration
+
+Sensor input continues to control the native game directly.
+
+⸻
+
+Mirror Performance
+
+The game thread performs only a small raw-pixel capture.
+
+JPEG encoding and transmission run on a separate worker thread.
+
+If the mirror cannot keep up, frames are dropped instead of slowing the game.
+
+Performance settings are available near the top of:
+
+runner.py
+
+Important parameters:
+
+MIRROR_FPS
+JPEG_QUALITY
+MAX_WIDTH
+
+For slower machines, reduce these values.
+
+⸻
+
+15. Avoid Reading session.json Every Frame
+
+Do not repeatedly read the file inside the main game loop.
+
+Avoid:
+
+while running:
+    cfg = read_session_from_disk()
+
+Instead, load the configuration once:
+
+import request_bridge
+cfg = request_bridge.get_session()
+
+Then update it only when the dashboard sends a change:
+
+if event.type == request_bridge.SESSION_EVENT:
+    cfg = event.session
+
+request_bridge.get_session() is cached and avoids unnecessary disk access.
+
+⸻
+
+16. Known PyGame Fix
+
+If battle.py contains:
+
+self.display_surface.blit(self.background_img)
+
+PyGame raises:
+
+TypeError: function missing required argument 'dest'
+
+Surface.blit() requires a destination.
+
+Change it to:
+
+self.display_surface.blit(
+    self.background_img,
+    (0, 0)
+)
+
+⸻
+
+17. File Structure
+
+File	Purpose
+bridge.py	Local companion server. Serves the web app, launches/stops PyGame, exposes APIs and relays mirror frames
+runner.py	Runs the game in mirror mode and streams frames
+request-app.html	ReQuest web prototype
+request_bridge.py	Helper library used by the PyGame application
+demo_game.py	Minimal PyGame implementation for testing the companion
+session.json	Current prescribed workout
+workout_log.json	Persistent completed workout records
+
+⸻
+
+18. Recommended Play Flow
+
+1. Start bridge.py
+        ↓
+2. Open http://localhost:8765
+        ↓
+3. Select / adjust workout
+        ↓
+4. Dashboard writes session.json
+        ↓
+5. Launch PyGame
+        ↓
+6. Game loads exercise plan
+        ↓
+7. Patient completes enemy encounters
+        ↓
+8. Game calls save_result() after each enemy
+        ↓
+9. Dashboard detects full workout completion
+        ↓
+10. XP + level awarded
+        ↓
+11. Patient redirected to check-in
+
+⸻
+
+19. Quick Start
+
+Start the companion:
+
+python bridge.py --game /path/to/game.py
+
+Open:
+
+http://localhost:8765
+
+In the game:
+
+import request_bridge
+plan = request_bridge.get_plan()
+
+When an enemy is defeated:
+
+request_bridge.save_result(
+    exercise=enemy.exercise_name,
+    reps=enemy.reps,
+    sets=enemy.sets,
+    xp=50
+)
+
+Everything else — workout completion, XP, level-up, logging and post-workout check-in — is handled by the ReQuest companion and dashboard.
+
+⸻
+
+Compatibility
+
+Tested with:
+
+Python 3.12
+pygame-ce 2.5.7
+
+Standard pygame is also supported.
+
+Default companion port:
+
+8765
